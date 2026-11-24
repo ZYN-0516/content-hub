@@ -1,0 +1,5 @@
+# 生产环境依赖：开发依赖之外还需要 gunicorn 与 whitenoise
+-r requirements.txt
+
+gunicorn==23.0.0
+whitenoise==6.8.2
