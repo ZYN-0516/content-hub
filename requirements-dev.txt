@@ -1,0 +1,5 @@
+# 开发与测试依赖（生产镜像不需要装）
+-r requirements.txt
+
+pytest==8.3.5
+pytest-django==4.9.0
