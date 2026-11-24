@@ -229,13 +229,27 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 ## 14. 功能截图
 
-截图素材放在 `.screenshots/`。
+截图文件放在项目根目录的 `.screenshots/`，按下面的文件名保存，README 会自动引用显示。**命名规范（直接用这个名字存）**：
 
-1. 创作台：输入 prompt、生成结果卡片与「提交审核」按钮；
-2. 作品广场：搜索框、作品卡片、详情弹窗与评论；
-3. 审核中心（管理员）：待审列表与通过/驳回；
-4. 管理后台（超级用户）：内容/用户/评论三分区；
-5. 个人中心：五项统计与作品审核状态。
+| 文件名 | 截什么 |
+| --- | --- |
+| `01-登录.png` | 登录页 |
+| `01-注册.png` | 注册页（带正则错误提示更佳） |
+| `02-创作台.png` | 输入 prompt、生成结果卡片与「提交审核」按钮 |
+| `03-作品广场.png` | 搜索框、作品卡片、详情弹窗与评论 |
+| `04-审核中心.png` | 管理员视角：待审列表与通过/驳回 |
+| `05-管理后台.png` | 超级用户视角：内容/用户/评论三分区 |
+| `06-个人中心.png` | 五项统计与作品审核状态 |
+
+采集方式：启动服务后浏览器访问 `http://127.0.0.1:8000/`，登录后逐个页面截图，按上表命名存进 `.screenshots/`。下面每个 `<img>` 已指向对应文件，图片放进去即可显示。
+
+<img src=".screenshots/01-登录.png" alt="登录页" width="720">
+<img src=".screenshots/01-注册.png" alt="注册页" width="720">
+<img src=".screenshots/02-创作台.png" alt="创作台" width="720">
+<img src=".screenshots/03-作品广场.png" alt="作品广场" width="720">
+<img src=".screenshots/04-审核中心.png" alt="审核中心" width="720">
+<img src=".screenshots/05-管理后台.png" alt="管理后台" width="720">
+<img src=".screenshots/06-个人中心.png" alt="个人中心" width="720">
 
 ## 15. 已知局限与改进方向
 
