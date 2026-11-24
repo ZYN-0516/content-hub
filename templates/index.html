@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>随心创 · AI 内容生成平台</title>
+  <style>
+    :root {
+      --primary: #6d5efc;
+      --primary-dark: #5646e0;
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #1f2330;
+      --muted: #8a90a3;
+      --border: #e8eaf1;
+      --success: #22b07d;
+      --running: #f5a623;
+      --failed: #e05050;
+      --shadow: 0 6px 24px rgba(30, 35, 70, .07);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    a { color: var(--primary); }
+
+    /* ---------- Header ---------- */
+    header { background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
+    .header-inner { max-width: 1160px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; gap: 28px; }
+    .logo { font-size: 20px; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+    .logo .dot { width: 10px; height: 10px; border-radius: 50%; background: linear-gradient(135deg, #6d5efc, #22b07d); }
+    nav { display: flex; gap: 6px; flex: 1; }
+    nav button { border: 0; background: transparent; color: var(--muted); font-size: 15px; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: .15s; }
+    nav button:hover { background: var(--bg); color: var(--text); }
+    nav button.active { background: #efedff; color: var(--primary); }
+    .user-area { display: flex; align-items: center; gap: 10px; }
+    .user-area .uname { font-size: 14px; color: var(--text); font-weight: 600; }
+    .btn { border: 0; border-radius: 8px; padding: 9px 18px; font-size: 14px; font-weight: 600; cursor: pointer; transition: .15s; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-primary:disabled { background: #b9b4ec; cursor: not-allowed; }
+    .btn-ghost { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+    /* ---------- Layout ---------- */
+    main { max-width: 1160px; margin: 0 auto; padding: 32px 24px 80px; }
+    .page { display: none; }
+    .page.active { display: block; animation: fade .25s ease; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .page-title { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+    .page-sub { color: var(--muted); margin-bottom: 26px; font-size: 14px; }
+
+    /* ---------- Create ---------- */
+    .create-grid { display: grid; grid-template-columns: 420px 1fr; gap: 28px; align-items: start; }
+    .panel { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 26px; }
+    .field { margin-bottom: 18px; }
+    .field label { display: block; font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+    .field .hint { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 6px; }
+    textarea, input[type=text], select { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size: 14px; font-family: inherit; transition: .15s; background: #fff; }
+    textarea { min-height: 120px; resize: vertical; }
+    textarea:focus, input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(109,94,252,.1); }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .generate-btn { width: 100%; padding: 14px; font-size: 16px; border-radius: 10px; }
+    .tips { margin-top: 18px; padding: 14px 16px; background: #f0efff; border-radius: 10px; font-size: 13px; color: #574bd0; }
+    .tips b { display: block; margin-bottom: 4px; }
+
+    /* ---------- Result ---------- */
+    .result-panel { min-height: 420px; }
+    .empty-state { text-align: center; padding: 90px 20px; color: var(--muted); }
+    .empty-state .big { font-size: 52px; margin-bottom: 12px; opacity: .5; }
+    .task-card { border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+    .task-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .badge { padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; color: #fff; }
+    .badge.pending { background: #9aa0b5; }
+    .badge.running { background: var(--running); }
+    .badge.success { background: var(--success); }
+    .badge.failed { background: var(--failed); }
+    .prompt-text { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+    .progress { height: 6px; background: var(--bg); border-radius: 6px; overflow: hidden; margin: 14px 0; }
+    .progress > div { height: 100%; background: linear-gradient(90deg, var(--primary), #a99dff); width: 30%; animation: slide 1.2s ease-in-out infinite; }
+    @keyframes slide { 0% { margin-left: -30%; } 100% { margin-left: 100%; } }
+    .result-image { width: 100%; border-radius: 12px; display: block; margin-top: 10px; }
+    .result-actions { margin-top: 14px; display: flex; gap: 10px; }
+    .error-box { background: #fff2f2; color: var(--failed); padding: 12px 14px; border-radius: 10px; font-size: 13px; }
+
+    /* ---------- Gallery ---------- */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+    .content-card { background: var(--card); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); transition: transform .18s; }
+    .content-card:hover { transform: translateY(-4px); }
+    .content-card img { width: 100%; height: 220px; object-fit: cover; display: block; background: #eee; }
+    .content-card .body { padding: 14px 16px; }
+    .content-card .title { font-weight: 700; font-size: 15px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .content-card .meta { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 20px; }
+    .toolbar input { flex: 1; }
+    .content-card { cursor: pointer; }
+    .detail-modal { width: 640px; max-width: 94vw; max-height: 86vh; overflow: auto; }
+    .detail-image { width: 100%; border-radius: 12px; display: block; margin: 12px 0 16px; }
+    .comment-list { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px; }
+    .comment-item { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .comment-item .who { font-weight: 700; margin-right: 8px; }
+    .comment-item .when { color: var(--muted); font-size: 12px; margin-left: 8px; }
+    .comment-form { display: flex; gap: 8px; margin-top: 14px; }
+    .comment-form input { flex: 1; }
+
+    /* ---------- Profile ---------- */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 26px; }
+    .stat-card { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 18px 20px; }
+    .stat-card .n { font-size: 28px; font-weight: 800; color: var(--primary); }
+    .stat-card .l { font-size: 13px; color: var(--muted); }
+    .profile-block { margin-bottom: 28px; }
+    .profile-block h3 { font-size: 16px; margin-bottom: 12px; }
+    .admin-ops { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+    .admin-ops input { width: 220px; }
+    .admin-ops select { width: 110px; padding: 6px 8px; }
+
+    /* ---------- Tasks ---------- */
+    .task-row { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 16px 20px; margin-bottom: 12px; display: flex; align-items: center; gap: 18px; }
+    .task-row .thumb { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; background: var(--bg); flex-shrink: 0; }
+    .task-row .info { flex: 1; min-width: 0; }
+    .task-row .info .t { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .task-row .info .s { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .task-section-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 800; margin: 22px 0 12px; }
+    .task-section-title:first-child { margin-top: 0; }
+    .task-section-title .count { background: #efedff; color: var(--primary); border-radius: 20px; padding: 1px 9px; font-size: 12px; }
+    .task-section-title .section-tip { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--muted); }
+    .task-group-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--text); margin: 16px 0 10px; }
+    .task-group-title .count { background: #f0efff; color: var(--primary); border-radius: 20px; padding: 1px 9px; font-size: 12px; }
+    .task-group-empty { background: var(--card); border-radius: 12px; padding: 14px 20px; color: var(--muted); font-size: 13px; box-shadow: var(--shadow); margin-bottom: 12px; }
+
+    /* ---------- Review ---------- */
+    .review-row { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); padding: 16px 20px; margin-bottom: 12px; display: flex; gap: 16px; align-items: center; }
+    .review-row .thumb { width: 84px; height: 84px; border-radius: 10px; object-fit: cover; background: var(--bg); flex-shrink: 0; }
+    .review-row .info { flex: 1; min-width: 0; }
+    .review-row .info .t { font-weight: 700; }
+    .review-row .info .m { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .review-row .ops { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+    .reject-box { display: none; margin-top: 8px; gap: 8px; }
+    .reject-box.show { display: flex; }
+    .reject-box input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; }
+
+    /* ---------- Modal ---------- */
+    .modal-mask { position: fixed; inset: 0; background: rgba(20,22,40,.45); display: none; align-items: center; justify-content: center; z-index: 100; }
+    .modal-mask.show { display: flex; }
+    .modal { background: var(--card); border-radius: 16px; width: 400px; max-width: 92vw; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+    .modal h2 { margin-bottom: 6px; font-size: 22px; }
+    .modal .sub { color: var(--muted); font-size: 13px; margin-bottom: 22px; }
+    .modal .switch { text-align: center; margin-top: 18px; font-size: 13px; color: var(--muted); }
+    .modal .switch a { cursor: pointer; font-weight: 700; }
+    .close { float: right; border: 0; background: transparent; font-size: 22px; cursor: pointer; color: var(--muted); }
+
+    /* ---------- Toast ---------- */
+    #toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #1f2330; color: #fff; padding: 12px 22px; border-radius: 10px; font-size: 14px; opacity: 0; pointer-events: none; transition: .25s; z-index: 200; box-shadow: var(--shadow); }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.error { background: var(--failed); }
+    #toast.success { background: var(--success); }
+
+    @media (max-width: 860px) { .create-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="logo"><span class="dot"></span>随心创</div>
+    <nav>
+      <button data-page="create" class="active">✨ 创作台</button>
+      <button data-page="gallery">🖼 作品广场</button>
+      <button data-page="tasks">📋 我的任务</button>
+      <button data-page="profile" id="navProfile" style="display:none">👤 个人中心</button>
+      <button data-page="review" id="navReview" style="display:none">🛡 审核中心</button>
+      <button data-page="admin" id="navAdmin" style="display:none">⚙ 管理后台</button>
+    </nav>
+    <div class="user-area">
+      <span class="uname" id="uname" style="display:none"></span>
+      <button class="btn btn-primary btn-sm" id="showLogin">登录</button>
+      <button class="btn btn-ghost btn-sm" id="showRegister">注册</button>
+      <!-- 说明：登录/注册已改为独立页面路由 /login/ 与 /register/，见页面底部脚本跳转逻辑 -->
+      <button class="btn btn-ghost btn-sm" id="logout" style="display:none">退出</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ============ 创作台 ============ -->
+  <section class="page active" id="page-create">
+    <div class="page-title">AI 创作台</div>
+    <div class="page-sub">输入你的创意描述，AI 帮你把它变成图片，可实时查看进度</div>
+    <div class="create-grid">
+      <div class="panel">
+        <div class="field">
+          <label>画面描述 <span class="hint">越具体，效果越好</span></label>
+          <textarea id="prompt" placeholder="例如：一只戴着黑框眼镜的橘猫，坐在电脑前写代码，赛博朋克风格，暖色调，高清"></textarea>
+        </div>
+        <div class="field">
+          <label>画面风格 <span class="hint">选填</span></label>
+          <input type="text" id="style" placeholder="例如：写实摄影 / 动漫 / 水彩 / 赛博朋克">
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>内容类型</label>
+            <select id="taskType">
+              <option value="image">图片生成</option>
+              <option value="video">视频生成（开发中）</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>图片尺寸</label>
+            <select id="size">
+              <option value="1024*1024">1024 × 1024</option>
+              <option value="720*1280">720 × 1280</option>
+              <option value="1280*720">1280 × 720</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary generate-btn" id="genBtn">🚀 开始生成</button>
+        <div class="tips">
+          <b>💡 提示</b>
+          需要先登录。生成后自动轮询任务状态，成功后可提交审核，审核通过才会出现在作品广场。
+        </div>
+      </div>
+
+      <div class="panel result-panel" id="resultPanel">
+        <div class="empty-state">
+          <div class="big">🎨</div>
+          <div>生成结果会显示在这里</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 作品广场 ============ -->
+  <section class="page" id="page-gallery">
+    <div class="page-title">作品广场</div>
+    <div class="page-sub">浏览所有审核通过的 AI 作品 · 点击卡片查看大图和评论</div>
+    <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="按标题搜索作品，回车即可搜索">
+      <button class="btn btn-primary btn-sm" id="searchBtn">🔍 搜索</button>
+      <button class="btn btn-ghost btn-sm" id="searchReset">全部</button>
+    </div>
+    <div class="grid" id="galleryGrid"></div>
+  </section>
+
+  <!-- ============ 我的任务 ============ -->
+  <section class="page" id="page-tasks">
+    <div class="page-title">我的任务</div>
+    <div class="page-sub" id="tasksSub">你提交过的生成任务及状态</div>
+    <div id="taskList"></div>
+  </section>
+
+  <!-- ============ 审核中心 ============ -->
+  <section class="page" id="page-review">
+    <div class="page-title">审核中心</div>
+    <div class="page-sub">审核用户提交的作品，通过后进入作品广场</div>
+    <div id="reviewList"></div>
+  </section>
+
+  <!-- ============ 管理后台 ============ -->
+  <section class="page" id="page-admin">
+    <div class="page-title">管理后台</div>
+    <div class="page-sub">全站作品与评论管理 · 用户角色管理仅超级用户可见</div>
+    <div class="profile-block">
+      <h3>🖼 内容管理</h3>
+      <div id="adminContents"></div>
+    </div>
+    <div class="profile-block" id="adminUsersBlock">
+      <h3>👥 用户管理 <span style="font-size:12px;font-weight:400;color:var(--muted)">（仅超级用户）</span></h3>
+      <div id="adminUsers"></div>
+    </div>
+    <div class="profile-block">
+      <h3>💬 评论管理</h3>
+      <div id="adminComments"></div>
+    </div>
+  </section>
+
+  <!-- ============ 个人中心 ============ -->
+  <section class="page" id="page-profile">
+    <div class="page-title">个人中心</div>
+    <div class="page-sub">我的创作数据、作品与审核状态</div>
+    <div class="stat-grid" id="profileStats"></div>
+    <div class="profile-block">
+      <h3>🎨 我的作品</h3>
+      <div id="profileContents"></div>
+    </div>
+    <div class="profile-block">
+      <h3>📋 我的生成任务</h3>
+      <div id="profileTasks"></div>
+    </div>
+  </section>
+</main>
+
+<!-- 作品详情 / 评论弹窗 -->
+<div class="modal-mask" id="detailMask">
+  <div class="modal detail-modal">
+    <button class="close" id="detailClose">&times;</button>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ==================== 基础工具 ==================== */
+const $ = (id) => document.getElementById(id);
+const TOKEN_KEY = 'cx_access';
+const USER_KEY = 'cx_user';
+let pollTimers = {};
+
+function toast(msg, type = '') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.className = '', 2600);
+}
+
+function getToken() { return localStorage.getItem(TOKEN_KEY); }
+function getUser() { try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch { return null; } }
+
+// 启动时刷新本地用户缓存：老数据可能缺少 role / is_staff，导致管理员被当普通用户
+async function refreshUser() {
+  if (!getToken()) return;
+  try {
+    const u = await api('/api/users/me/');
+    localStorage.setItem(USER_KEY, JSON.stringify(u));
+  } catch (e) { /* api() 已处理 401 跳转 */ }
+}
+
+async function api(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = getToken();
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(path, { ...options, headers });
+  let body;
+  try { body = await res.json(); } catch { throw new Error('服务返回异常 (' + res.status + ')'); }
+  if (!res.ok) {
+    if (res.status === 401 && path !== '/api/users/login/') {
+      logout();
+      const next = encodeURIComponent(location.pathname + location.search);
+      location.href = '/login/?next=' + next;
+      return;
+    }
+    throw new Error(body.message || ('请求失败 ' + res.status));
+  }
+  if (body.code !== 0) throw new Error(body.message || '操作失败');
+  return body.data;
+}
+
+/* ==================== 用户状态 ==================== */
+function isReviewer(u) {
+  return !!u && (u.role === 'reviewer' || u.role === 'admin' || u.is_staff === true);
+}
+
+function isAdmin(u) {
+  return !!u && (u.role === 'admin' || u.is_staff === true || u.is_superuser === true);
+}
+
+function isSuperUser(u) {
+  return !!u && u.is_superuser === true;
+}
+
+function updateUserUI() {
+  const u = getUser();
+  if (u) {
+    $('uname').textContent = '👤 ' + (u.nickname || u.username);
+    $('uname').style.display = '';
+    $('showLogin').style.display = 'none';
+    $('showRegister').style.display = 'none';
+    $('logout').style.display = '';
+    $('navProfile').style.display = '';
+    $('navReview').style.display = isReviewer(u) ? '' : 'none';
+    $('navAdmin').style.display = isAdmin(u) ? '' : 'none';
+  } else {
+    $('uname').style.display = 'none';
+    $('showLogin').style.display = '';
+    $('showRegister').style.display = '';
+    $('logout').style.display = 'none';
+    $('navProfile').style.display = 'none';
+    $('navReview').style.display = 'none';
+    $('navAdmin').style.display = 'none';
+  }
+}
+
+function logout() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  updateUserUI();
+}
+
+/* ==================== 页面切换 ==================== */
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    $('page-' + btn.dataset.page).classList.add('active');
+    if (btn.dataset.page === 'gallery') loadGallery();
+    if (btn.dataset.page === 'tasks') loadTasks();
+    if (btn.dataset.page === 'profile') loadProfile();
+    if (btn.dataset.page === 'review') loadReviewList();
+    if (btn.dataset.page === 'admin') loadAdmin();
+  });
+});
+
+/* ==================== 登录 / 注册（改为独立页面路由） ==================== */
+// 登录页 /login/、注册页 /register/ 各有独立表单；本页只负责跳转。
+function goLogin() {
+  const next = encodeURIComponent(location.pathname + location.search);
+  location.href = '/login/?next=' + next;
+}
+$('showLogin').onclick = goLogin;
+$('showRegister').onclick = () => {
+  const next = encodeURIComponent(location.pathname + location.search);
+  location.href = '/register/?next=' + next;
+};
+$('logout').onclick = () => { logout(); toast('已退出登录'); };
+
+/* ==================== 生成任务 ==================== */
+$('genBtn').onclick = async () => {
+  if (!getToken()) { toast('请先登录', 'error'); goLogin(); return; }
+  const prompt = $('prompt').value.trim();
+  if (!prompt) return toast('请输入画面描述', 'error');
+  const size = $('size').value;
+  const [w, h] = size.split('*').map(Number);
+  const payload = {
+    task_type: $('taskType').value,
+    prompt,
+    style: $('style').value.trim(),
+    canvas_w: w, canvas_h: h,
+    ratio: (w === h) ? '1:1' : (w > h ? '16:9' : '9:16'),
+  };
+  const btn = $('genBtn');
+  btn.disabled = true; btn.textContent = '提交中...';
+  try {
+    const task = await api('/api/generation/tasks/', { method: 'POST', body: JSON.stringify(payload) });
+    renderTaskPending(task.id, prompt);
+    pollTask(task.id);
+    toast('任务已提交，正在生成...', 'success');
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 开始生成';
+  }
+};
+
+function renderTaskPending(id, prompt) {
+  $('resultPanel').innerHTML = `
+    <div class="task-card">
+      <div class="task-head">
+        <strong>任务 #${id}</strong>
+        <span class="badge pending" id="taskBadge">待处理</span>
+      </div>
+      <div class="prompt-text">${escapeHtml(prompt)}</div>
+      <div class="progress"><div></div></div>
+      <div style="text-align:center;color:var(--muted);font-size:13px" id="taskMsg">已提交，等待后台生成…</div>
+      <div class="result-actions">
+        <button class="btn btn-ghost btn-sm" id="cancelBtn" style="width:100%">⏹ 中止生成</button>
+      </div>
+    </div>`;
+  $('cancelBtn').onclick = () => cancelTask(id, prompt);
+}
+
+// 中止生成：调用后端 cancel 接口，停止轮询并立即显示"已中止"
+async function cancelTask(id, prompt) {
+  if (!confirm('确定要中止这次生成吗？已提交的费用可能不会退回。')) return;
+  const btn = $('cancelBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '中止中...'; }
+  try {
+    await api('/api/generation/tasks/' + id + '/cancel/', { method: 'POST' });
+    if (pollTimers[id]) { clearInterval(pollTimers[id]); delete pollTimers[id]; }
+    showCancelled(prompt);
+    toast('已中止生成', 'success');
+  } catch (e) {
+    toast(e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '⏹ 中止生成'; }
+  }
+}
+
+function showCancelled(prompt) {
+  $('resultPanel').innerHTML = `
+    <div class="task-card">
+      <div class="task-head"><strong>任务已中止</strong><span class="badge failed">已中止</span></div>
+      <div class="prompt-text">${escapeHtml(prompt || '')}</div>
+      <div style="text-align:center;color:var(--muted);padding:24px 0;font-size:14px">你已中止本次生成，未产生任何作品。</div>
+    </div>`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+const STATUS_MAP = {
+  pending: ['待处理', 'pending'],
+  running: ['生成中', 'running'],
+  success: ['生成成功', 'success'],
+  failed: ['生成失败', 'failed'],
+};
+
+function pollTask(id) {
+  if (pollTimers[id]) clearInterval(pollTimers[id]);
+  pollTimers[id] = setInterval(async () => {
+    try {
+      const task = await api('/api/generation/tasks/' + id + '/');
+      const [label, cls] = STATUS_MAP[task.status] || [task.status, 'pending'];
+      const badge = $('taskBadge');
+      if (!badge) { clearInterval(pollTimers[id]); return; }
+      badge.textContent = label;
+      badge.className = 'badge ' + cls;
+      if (task.status === 'pending' || task.status === 'running') {
+        $('taskMsg').textContent = task.status === 'running' ? 'AI 正在绘制，请稍候…' : '已提交，等待后台生成…';
+      } else if (task.status === 'success') {
+        clearInterval(pollTimers[id]);
+        const cid = task.parameters && task.parameters.content_id;
+        if (cid) {
+          const content = await api('/api/content/' + cid + '/');
+          showSuccess(content, cid);
+        } else {
+          showError('生成成功但未找到内容记录');
+        }
+      } else if (task.status === 'failed') {
+        clearInterval(pollTimers[id]);
+        if (task.parameters && task.parameters.cancelled) {
+          showCancelled(task.prompt);
+        } else {
+          const err = (task.parameters && task.parameters.error) || '未知错误';
+          showError(err);
+        }
+      }
+    } catch (e) {
+      clearInterval(pollTimers[id]);
+      showError(e.message);
+    }
+  }, 2000);
+}
+
+function showSuccess(content, cid) {
+  $('resultPanel').innerHTML = `
+    <div class="task-card">
+      <div class="task-head">
+        <strong>${escapeHtml(content.title)}</strong>
+        <span class="badge success">生成成功</span>
+      </div>
+      <img class="result-image" src="${content.file}" alt="生成图片">
+      <div class="result-actions">
+        <button class="btn btn-primary btn-sm" id="submitReviewBtn">📤 提交审核</button>
+        <button class="btn btn-ghost btn-sm" id="viewTasksBtn">查看我的任务</button>
+      </div>
+    </div>`;
+  $('submitReviewBtn').onclick = async () => {
+    try {
+      await api('/api/content/' + cid + '/submit-review/', { method: 'POST' });
+      toast('已提交审核，等待审核员处理', 'success');
+      $('submitReviewBtn').textContent = '✓ 已提交审核';
+      $('submitReviewBtn').disabled = true;
+    } catch (e) { toast(e.message, 'error'); }
+  };
+  $('viewTasksBtn').onclick = () => document.querySelector('nav button[data-page="tasks"]').click();
+}
+
+function showError(msg) {
+  $('resultPanel').innerHTML = `
+    <div class="task-card">
+      <div class="task-head"><strong>生成失败</strong><span class="badge failed">失败</span></div>
+      <div class="error-box">${escapeHtml(msg)}</div>
+      <div class="tips" style="margin-top:14px">若提示额度或欠费，请检查阿里云百炼账户状态；可稍后重试。</div>
+    </div>`;
+}
+
+/* ==================== 作品广场 ==================== */
+async function loadGallery(q = '') {
+  const grid = $('galleryGrid');
+  grid.innerHTML = '<div style="color:var(--muted)">加载中…</div>';
+  try {
+    const items = await api('/api/content/search/?q=' + encodeURIComponent(q));
+    if (!items.length) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="big">🖼</div><div>' + (q ? '没有匹配的作品，换个标题试试' : '还没有已发布的作品，去创作台生成并发布第一个吧') + '</div></div>';
+      return;
+    }
+    grid.innerHTML = items.map(c => `
+      <div class="content-card" onclick="window._openDetail(${c.id})">
+        <img src="${c.file}" alt="${escapeHtml(c.title)}" loading="lazy">
+        <div class="body">
+          <div class="title">${escapeHtml(c.title)}</div>
+          <div class="meta"><span>@${escapeHtml(c.author_name || '创作者')}</span><span>${(c.created_at || '').slice(0, 10)}</span></div>
+        </div>
+      </div>`).join('');
+  } catch (e) { grid.innerHTML = '<div style="color:var(--failed)">' + escapeHtml(e.message) + '</div>'; }
+}
+
+$('searchBtn').onclick = () => loadGallery($('searchInput').value.trim());
+$('searchInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') loadGallery($('searchInput').value.trim());
+});
+$('searchReset').onclick = () => { $('searchInput').value = ''; loadGallery(); };
+
+/* ==================== 作品详情 / 评论 ==================== */
+window._openDetail = async (cid) => {
+  const mask = $('detailMask');
+  $('detailBody').innerHTML = '<div style="color:var(--muted)">加载中…</div>';
+  mask.classList.add('show');
+  try {
+    const [c, comments] = await Promise.all([
+      api('/api/content/' + cid + '/'),
+      api('/api/comments/?content_id=' + cid),
+    ]);
+    $('detailBody').innerHTML = `
+      <h2>${escapeHtml(c.title)}</h2>
+      <div class="sub">@${escapeHtml(c.author_name || '创作者')} · ${(c.created_at || '').slice(0, 10)}</div>
+      <img class="detail-image" src="${c.file}" alt="">
+      <div class="comment-list">
+        <div style="font-weight:700;margin-bottom:6px">💬 评论 (${comments.length})</div>
+        <div id="commentList">${comments.length ? comments.map(cm => `
+          <div class="comment-item">
+            <span class="who">${escapeHtml(cm.user_name || '用户')}</span>
+            ${escapeHtml(cm.text)}
+            <span class="when">${(cm.created_at || '').slice(0, 16).replace('T', ' ')}</span>
+          </div>`).join('') : '<div style="color:var(--muted);font-size:13px">还没有评论，来说第一句吧</div>'}</div>
+        <div class="comment-form">
+          <input type="text" id="commentText" placeholder="${getToken() ? '写下你的评论…' : '登录后才能评论'}">
+          <button class="btn btn-primary btn-sm" id="commentSubmit">发表</button>
+        </div>
+      </div>`;
+    $('commentSubmit').onclick = () => postComment(cid);
+  } catch (e) {
+    $('detailBody').innerHTML = '<div class="error-box">' + escapeHtml(e.message) + '</div>';
+  }
+};
+
+async function postComment(cid) {
+  if (!getToken()) { $('detailMask').classList.remove('show'); toast('请先登录', 'error'); goLogin(); return; }
+  const input = $('commentText');
+  const text = input.value.trim();
+  if (!text) return toast('请输入评论内容', 'error');
+  try {
+    await api('/api/comments/', { method: 'POST', body: JSON.stringify({ content: cid, text }) });
+    input.value = '';
+    window._openDetail(cid);
+    toast('评论成功', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+$('detailClose').onclick = () => $('detailMask').classList.remove('show');
+$('detailMask').onclick = (e) => { if (e.target === $('detailMask')) $('detailMask').classList.remove('show'); };
+
+/* ==================== 个人中心 ==================== */
+async function loadProfile() {
+  if (!getToken()) {
+    $('profileStats').innerHTML = '';
+    $('profileContents').innerHTML = '<div class="empty-state"><div class="big">🔒</div><div>请先登录查看个人中心</div></div>';
+    $('profileTasks').innerHTML = '';
+    return;
+  }
+  const contentsBox = $('profileContents');
+  const tasksBox = $('profileTasks');
+  contentsBox.innerHTML = '<div style="color:var(--muted)">加载中…</div>';
+  tasksBox.innerHTML = '<div style="color:var(--muted)">加载中…</div>';
+  try {
+    const [contents, tasks] = await Promise.all([
+      api('/api/content/mine/'),
+      api('/api/generation/tasks/'),
+    ]);
+    const count = (s) => contents.filter(c => c.status === s).length;
+    $('profileStats').innerHTML = [
+      [tasks.length, '生成任务'], [contents.length, '我的作品'],
+      [count('published'), '已发布'], [count('pending'), '待审核'],
+      [count('rejected'), '已驳回'],
+    ].map(([n, l]) => `<div class="stat-card"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+
+    const LABEL = { draft: '草稿', pending: '待审核', published: '已发布', rejected: '已驳回' };
+    const CLS = { draft: 'pending', pending: 'running', published: 'success', rejected: 'failed' };
+    contentsBox.innerHTML = contents.length ? contents.map(c => `
+      <div class="task-row">
+        <img class="thumb" src="${c.file}" alt="">
+        <div class="info">
+          <div class="t">${escapeHtml(c.title)}</div>
+          <div class="s">${(c.created_at || '').slice(0, 16).replace('T', ' ')}${c.review_comment ? ' · 审核意见：' + escapeHtml(c.review_comment) : ''}</div>
+        </div>
+        <span class="badge ${CLS[c.status] || 'pending'}">${LABEL[c.status] || c.status}</span>
+        ${c.status === 'draft' || c.status === 'rejected'
+          ? `<button class="btn btn-ghost btn-sm" onclick="window._profileSubmit(${c.id})">提交审核</button>` : ''}
+      </div>`).join('') : '<div class="task-group-empty">还没有作品，去创作台生成第一个吧</div>';
+
+    window._profileSubmit = async (cid) => {
+      try {
+        await api('/api/content/' + cid + '/submit-review/', { method: 'POST' });
+        toast('已提交审核', 'success');
+        loadProfile();
+      } catch (e) { toast(e.message, 'error'); }
+    };
+
+    tasksBox.innerHTML = tasks.length ? tasks.map(t => {
+      const [label, cls] = STATUS_MAP[t.status] || [t.status, 'pending'];
+      const text = (t.parameters && t.parameters.cancelled) ? '已中止' : label;
+      const color = (t.parameters && t.parameters.cancelled) ? 'failed' : cls;
+      return `
+        <div class="task-row">
+          <div class="thumb"></div>
+          <div class="info">
+            <div class="t">#${t.id} · ${escapeHtml(t.prompt.slice(0, 40))}</div>
+            <div class="s">${t.task_type === 'image' ? '图片' : '视频'} · ${(t.created_at || '').slice(0, 16).replace('T', ' ')}</div>
+          </div>
+          <span class="badge ${color}">${text}</span>
+        </div>`;
+    }).join('') : '<div class="task-group-empty">还没有生成任务</div>';
+  } catch (e) {
+    contentsBox.innerHTML = '<div style="color:var(--failed)">' + escapeHtml(e.message) + '</div>';
+    tasksBox.innerHTML = '';
+  }
+}
+
+/* ==================== 我的任务 ==================== */
+async function loadTasks() {
+  if (!getToken()) {
+    $('taskList').innerHTML = '<div class="empty-state"><div class="big">🔒</div><div>请先登录查看你的任务</div></div>';
+    return;
+  }
+  const box = $('taskList');
+  box.innerHTML = '<div style="color:var(--muted)">加载中…</div>';
+  const reviewer = isReviewer(getUser());
+  try {
+    const requests = [api('/api/generation/tasks/')];
+    // 管理员额外拉全站审核记录（含已处理），与自己的创作任务分开显示
+    if (reviewer) requests.push(api('/api/review/tasks/?status=all'));
+    const [tasks, reviews] = await Promise.all(requests);
+    // 批量取内容详情，用于缩略图
+    const contents = {};
+    await Promise.all(tasks.filter(t => t.parameters && t.parameters.content_id).map(async (t) => {
+      try { contents[t.id] = await api('/api/content/' + t.parameters.content_id + '/'); } catch {}
+    }));
+    const CONTENT_STATUS = {
+      draft: ['草稿', 'pending'], pending: ['待审核', 'running'],
+      published: ['已发布', 'success'], rejected: ['已驳回', 'failed'],
+    };
+    const REVIEW_STATUS = {
+      pending: ['待审核', 'running'], approved: ['已通过', 'success'],
+      rejected: ['已驳回', 'failed'],
+    };
+    const rowHtml = (t) => {
+      let [label, cls] = STATUS_MAP[t.status] || [t.status, 'pending'];
+      if (t.parameters && t.parameters.cancelled) { label = '已中止'; cls = 'failed'; }
+      const c = contents[t.id];
+      // 生成成功后，用作品审核状态替代"生成成功"标签
+      let statusLabel = label, statusCls = cls;
+      if (c && c.status) {
+        const [cl, cc] = CONTENT_STATUS[c.status] || [label, cls];
+        statusLabel = cl; statusCls = cc;
+      }
+      const thumb = c ? `<img class="thumb" src="${c.file}" alt="">` : '<div class="thumb"></div>';
+      const sub = (t.task_type === 'image' ? '图片' : '视频') + ' · ' + (t.created_at || '').slice(0, 16).replace('T', ' ');
+      return `
+        <div class="task-row">
+          ${thumb}
+          <div class="info">
+            <div class="t">#${t.id} · ${escapeHtml(t.prompt.slice(0, 40))}</div>
+            <div class="s">${sub}</div>
+          </div>
+          <span class="badge ${statusCls}">${statusLabel}</span>
+          ${c ? `<button class="btn btn-ghost btn-sm" onclick="window._showContent(${c.id})">查看</button>` : ''}
+        </div>`;
+    };
+    window._contentCache = contents;
+    window._showContent = (cid) => {
+      const c = Object.values(contents).find(x => x.id === cid);
+      if (!c) return;
+      document.querySelector('nav button[data-page="create"]').click();
+      showSuccess(c, c.id);
+    };
+    window._goReview = () => document.querySelector('nav button[data-page="review"]').click();
+
+    if (reviewer) {
+      const allReviews = reviews || [];
+      const reviewPending = allReviews.filter(r => r.status === 'pending');
+      const reviewDone = allReviews.filter(r => r.status !== 'pending');
+      const reviewRow = (r) => {
+        const done = r.status !== 'pending';
+        const [label, cls] = REVIEW_STATUS[r.status] || [r.status, 'pending'];
+        const meta = done
+          ? `${escapeHtml(r.reviewer_name || '未知审核员')} · ${(r.reviewed_at || '').slice(0, 16).replace('T', ' ')}${r.comment ? ' · ' + escapeHtml(r.comment) : ''}`
+          : `@${escapeHtml(r.author_name || '创作者')} · 提交于 ${(r.created_at || '').slice(0, 16).replace('T', ' ')}`;
+        return `
+          <div class="review-row">
+            <img class="thumb" src="${r.content_file}" alt="">
+            <div class="info">
+              <div class="t">${escapeHtml(r.content_title || ('内容#' + r.content))}</div>
+              <div class="m">${meta}</div>
+            </div>
+            ${done
+              ? `<span class="badge ${cls}">${label}</span>`
+              : `<button class="btn btn-primary btn-sm" onclick="window._goReview()">去审核</button>`}
+          </div>`;
+      };
+      $('tasksSub').textContent = '审核内容（全站共享）与自己创作的任务分开显示';
+      let html = `<div class="task-section-title">🛡 审核内容 <span class="count">${allReviews.length}</span>
+        <span class="section-tip">所有管理员共享同一份审核记录</span></div>`;
+      html += `<div class="task-group-title">⏳ 待审核 <span class="count">${reviewPending.length}</span></div>`;
+      html += reviewPending.length ? reviewPending.map(reviewRow).join('') : '<div class="task-group-empty">暂无待审核作品</div>';
+      html += `<div class="task-group-title">✅ 审核完成 <span class="count">${reviewDone.length}</span></div>`;
+      html += reviewDone.length ? reviewDone.map(reviewRow).join('') : '<div class="task-group-empty">暂无已处理记录</div>';
+      html += `<div class="task-section-title">🎨 自己创作的任务 <span class="count">${tasks.length}</span></div>`;
+      html += tasks.length ? tasks.map(rowHtml).join('') : '<div class="task-group-empty">你还没有创作任务，去创作台生成第一个吧</div>';
+      box.innerHTML = html;
+    } else {
+      $('tasksSub').textContent = '你提交过的生成任务及状态';
+      box.innerHTML = tasks.length ? tasks.map(rowHtml).join('') : '<div class="empty-state"><div class="big">📋</div><div>还没有任务，去创作台生成第一个吧</div></div>';
+    }
+  } catch (e) { box.innerHTML = '<div style="color:var(--failed)">' + escapeHtml(e.message) + '</div>'; }
+}
+
+/* ==================== 审核中心 ==================== */
+async function loadReviewList() {
+  if (!isReviewer(getUser())) {
+    $('reviewList').innerHTML = '<div class="empty-state"><div class="big">🔒</div><div>仅审核员/管理员可访问</div></div>';
+    return;
+  }
+  const box = $('reviewList');
+  box.innerHTML = '<div style="color:var(--muted)">加载中…</div>';
+  try {
+    const list = await api('/api/review/tasks/');
+    if (!list.length) {
+      box.innerHTML = '<div class="empty-state"><div class="big">✅</div><div>暂无待审核作品</div></div>';
+      return;
+    }
+    box.innerHTML = list.map(r => `
+      <div class="review-row" id="review-${r.id}">
+        <img class="thumb" src="${r.content_file}" alt="">
+        <div class="info">
+          <div class="t">${escapeHtml(r.content_title || ('内容#' + r.content))}</div>
+          <div class="m">@${escapeHtml(r.author_name || '创作者')} · 提交于 ${(r.created_at || '').slice(0, 16).replace('T', ' ')}</div>
+          <div class="reject-box" id="rejectBox-${r.id}">
+            <input type="text" id="rejectReason-${r.id}" placeholder="填写驳回原因（可选）">
+            <button class="btn btn-ghost btn-sm" id="doReject-${r.id}">确认驳回</button>
+          </div>
+        </div>
+        <div class="ops">
+          <button class="btn btn-primary btn-sm" id="doApprove-${r.id}">✓ 通过</button>
+          <button class="btn btn-ghost btn-sm" id="openReject-${r.id}">✗ 驳回</button>
+        </div>
+      </div>`).join('');
+
+    list.forEach(r => {
+      $('doApprove-' + r.id).onclick = () => reviewAction(r.id, 'approve');
+      $('openReject-' + r.id).onclick = () => $('rejectBox-' + r.id).classList.add('show');
+      $('doReject-' + r.id).onclick = () => {
+        const reason = $('rejectReason-' + r.id).value.trim();
+        reviewAction(r.id, 'reject', reason);
+      };
+    });
+  } catch (e) {
+    box.innerHTML = '<div style="color:var(--failed)">' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function reviewAction(id, action, reason) {
+  const url = '/api/review/tasks/' + id + '/' + action + '/';
+  const options = { method: 'POST' };
+  if (action === 'reject') options.body = JSON.stringify({ comment: reason || '' });
+  options.headers = { 'Content-Type': 'application/json' };
+  try {
+    await api(url, options);
+    toast(action === 'approve' ? '已通过，作品已进入广场' : '已驳回', 'success');
+    loadReviewList();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+/* ==================== 管理后台 ==================== */
+async function loadAdmin() {
+  const me = getUser();
+  const boxes = ['adminContents', 'adminUsers', 'adminComments'];
+  if (!isAdmin(me)) {
+    boxes.forEach(id => $(id).innerHTML = '<div class="empty-state"><div class="big">🔒</div><div>仅管理员可访问</div></div>');
+    return;
+  }
+  const superUser = isSuperUser(me);
+  ['adminContents', 'adminComments'].forEach(id => $(id).innerHTML = '<div style="color:var(--muted)">加载中…</div>');
+  if (superUser) {
+    $('adminUsers').innerHTML = '<div style="color:var(--muted)">加载中…</div>';
+  } else {
+    $('adminUsers').innerHTML = '<div class="task-group-empty">👑 仅超级用户可查看和管理用户角色</div>';
+  }
+  try {
+    const requests = [api('/api/admin/content/'), api('/api/admin/comments/')];
+    if (superUser) requests.push(api('/api/admin/users/'));
+    const results = await Promise.all(requests);
+    const contents = results[0];
+    const comments = results[1];
+    const users = superUser ? results[2] : [];
+    const C_LABEL = { draft: '草稿', pending: '待审核', published: '已发布', rejected: '已驳回' };
+    const R_LABEL = { member: '成员', reviewer: '审核员', admin: '管理员' };
+
+    $('adminContents').innerHTML = contents.length ? contents.map(c => `
+      <div class="task-row">
+        <img class="thumb" src="${c.file}" alt="">
+        <div class="info">
+          <div class="t">#${c.id} · @${escapeHtml(c.author_name || '')}</div>
+          <div class="s">${(c.created_at || '').slice(0, 16).replace('T', ' ')}</div>
+        </div>
+        <div class="admin-ops">
+          <input type="text" id="adminTitle-${c.id}" value="${escapeHtml(c.title)}">
+          <select id="adminStatus-${c.id}">
+            ${Object.keys(C_LABEL).map(s => `<option value="${s}" ${c.status === s ? 'selected' : ''}>${C_LABEL[s]}</option>`).join('')}
+          </select>
+          <button class="btn btn-primary btn-sm" id="adminSave-${c.id}">保存</button>
+          <button class="btn btn-ghost btn-sm" id="adminDel-${c.id}">删除</button>
+        </div>
+      </div>`).join('') : '<div class="task-group-empty">暂无作品</div>';
+
+    contents.forEach(c => {
+      $('adminSave-' + c.id).onclick = async () => {
+        try {
+          await api('/api/admin/content/' + c.id + '/', {
+            method: 'PATCH',
+            body: JSON.stringify({
+              title: $('adminTitle-' + c.id).value.trim(),
+              status: $('adminStatus-' + c.id).value,
+            }),
+          });
+          toast('已保存', 'success');
+          loadAdmin();
+        } catch (e) { toast(e.message, 'error'); }
+      };
+      $('adminDel-' + c.id).onclick = async () => {
+        if (!confirm('确定删除该作品？不可恢复。')) return;
+        try {
+          await api('/api/content/' + c.id + '/', { method: 'DELETE' });
+          toast('已删除', 'success');
+          loadAdmin();
+        } catch (e) { toast(e.message, 'error'); }
+      };
+    });
+
+    if (superUser) {
+      $('adminUsers').innerHTML = users.length ? users.map(u => `
+        <div class="task-row">
+          <div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:24px">👤</div>
+          <div class="info">
+            <div class="t">${escapeHtml(u.username)}
+              ${u.is_superuser ? '<span class="badge success" style="font-size:11px">超级用户</span>' : ''}
+              ${u.is_staff && !u.is_superuser ? '<span class="badge success" style="font-size:11px">staff</span>' : ''}
+            </div>
+            <div class="s">${escapeHtml(u.email)} · ${(u.date_joined || '').slice(0, 10)}</div>
+          </div>
+          <div class="admin-ops">
+            <select id="adminRole-${u.id}">
+              ${Object.keys(R_LABEL).map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${R_LABEL[r]}</option>`).join('')}
+            </select>
+            <button class="btn btn-primary btn-sm" id="adminRoleSave-${u.id}">保存</button>
+          </div>
+        </div>`).join('') : '<div class="task-group-empty">暂无用户</div>';
+
+      users.forEach(u => {
+        $('adminRoleSave-' + u.id).onclick = async () => {
+          try {
+            await api('/api/admin/users/' + u.id + '/role/', {
+              method: 'PATCH', body: JSON.stringify({ role: $('adminRole-' + u.id).value }),
+            });
+            toast('角色已更新', 'success');
+            loadAdmin();
+          } catch (e) { toast(e.message, 'error'); }
+        };
+      });
+    }
+
+    $('adminComments').innerHTML = comments.length ? comments.map(cm => `
+      <div class="task-row">
+        <div class="info">
+          <div class="t">@${escapeHtml(cm.user_name || '')} · ${escapeHtml(cm.content_title || '')}</div>
+          <div class="s">${escapeHtml(cm.text)} · ${(cm.created_at || '').slice(0, 16).replace('T', ' ')}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="adminCommentDel-${cm.id}">删除</button>
+      </div>`).join('') : '<div class="task-group-empty">暂无评论</div>';
+
+    comments.forEach(cm => {
+      $('adminCommentDel-' + cm.id).onclick = async () => {
+        if (!confirm('确定删除这条评论？')) return;
+        try {
+          await api('/api/admin/comments/' + cm.id + '/', { method: 'DELETE' });
+          toast('已删除', 'success');
+          loadAdmin();
+        } catch (e) { toast(e.message, 'error'); }
+      };
+    });
+  } catch (e) {
+    boxes.forEach(id => $(id).innerHTML = '<div style="color:var(--failed)">' + escapeHtml(e.message) + '</div>');
+  }
+}
+
+/* ==================== 启动 ==================== */
+(async () => {
+  await refreshUser();
+  updateUserUI();
+  loadGallery();
+})();
+</script>
+</body>
+</html>
