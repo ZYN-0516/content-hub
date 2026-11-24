@@ -229,7 +229,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 ## 14. 功能截图
 
-截图素材放在 `.screenshots/`（当前为空，待采集）。采集方式：启动服务后用浏览器访问 `http://127.0.0.1:8000/`，依次截取——
+截图素材放在 `.screenshots/`。
 
 1. 创作台：输入 prompt、生成结果卡片与「提交审核」按钮；
 2. 作品广场：搜索框、作品卡片、详情弹窗与评论；
