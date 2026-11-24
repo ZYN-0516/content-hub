@@ -1,0 +1,29 @@
+# ===== 密钥与环境配置（绝不提交）=====
+.env
+.env.*
+!.env.example
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+env/
+.venv/
+
+# ===== Django =====
+*.log
+db.sqlite3
+media/
+staticfiles/
+
+# ===== 测试与缓存 =====
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ===== IDE / 系统 =====
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
